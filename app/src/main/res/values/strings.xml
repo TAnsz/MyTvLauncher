@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">简洁桌面</string>
+    <string name="title_used">常用</string>
+    <string name="title_app">应用</string>
+    <string name="title_sysapp">系统应用</string>
+    <string name="appUninstall">应用卸载</string>
+    <string name="app_uninstall">应用卸载</string>
+    <string name="title_function">功能</string>
+</resources>
