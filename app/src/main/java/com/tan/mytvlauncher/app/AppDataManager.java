@@ -41,6 +41,7 @@ public class AppDataManager {
             appModel.setPackageName(resolveInfo.activityInfo.packageName);
             appModel.setDataDir(resolveInfo.activityInfo.applicationInfo.publicSourceDir);
             appModel.setLauncherName(resolveInfo.activityInfo.name);
+            appModel.initOpenCount(mContext);
             String pkgName = resolveInfo.activityInfo.packageName;
             PackageInfo mPackageInfo;
             try {

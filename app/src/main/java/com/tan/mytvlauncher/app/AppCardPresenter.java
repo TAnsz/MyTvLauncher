@@ -1,11 +1,15 @@
 package com.tan.mytvlauncher.app;
 
 import android.graphics.drawable.Drawable;
+import android.support.annotation.Nullable;
 import android.support.v17.leanback.widget.ImageCardView;
 import android.support.v17.leanback.widget.Presenter;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.tan.mytvlauncher.R;
 
@@ -18,9 +22,22 @@ public class AppCardPresenter extends Presenter {
 
     private static int CARD_WIDTH = 313;
     private static int CARD_HEIGHT = 176;
-    private static int sSelectedBackgroundColor;
     private static int sDefaultBackgroundColor;
+    private static int sSelectedBackgroundColor;
     private Drawable mDefaultCardImage;
+
+    private int mWidth;
+    private int mHeight;
+
+    public AppCardPresenter() {
+        this.mWidth = CARD_WIDTH;
+        this.mHeight = CARD_HEIGHT;
+    }
+
+    public AppCardPresenter(int width, int height) {
+        this.mWidth = width;
+        this.mHeight = height;
+    }
 
     private static void updateCardBackgroundColor(ImageCardView view, boolean selected) {
         int color = selected ? sSelectedBackgroundColor : sDefaultBackgroundColor;
@@ -35,7 +52,7 @@ public class AppCardPresenter extends Presenter {
         Log.d(TAG, "onCreateViewHolder");
 
         sDefaultBackgroundColor = parent.getResources().getColor(R.color.default_background);
-        sSelectedBackgroundColor = parent.getResources().getColor(R.color.selected_background);
+        sSelectedBackgroundColor = parent.getResources().getColor(R.color.detail_background);
 
         ImageCardView cardView = new ImageCardView(parent.getContext()) {
             @Override
@@ -47,6 +64,8 @@ public class AppCardPresenter extends Presenter {
 
         cardView.setFocusable(true);
         cardView.setFocusableInTouchMode(true);
+        TextView title = (TextView) cardView.findViewById(R.id.title_text);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, mHeight / 9);
         updateCardBackgroundColor(cardView, false);
         return new ViewHolder(cardView);
     }
@@ -57,9 +76,9 @@ public class AppCardPresenter extends Presenter {
         ImageCardView cardView = (ImageCardView) viewHolder.view;
 
         Log.d(TAG, "onBindViewHolder");
-        cardView.setMainImageDimensions(CARD_WIDTH, CARD_HEIGHT);
+        cardView.setMainImageDimensions(mWidth, mHeight);
         cardView.setTitleText(appModel.getName());
-        cardView.setMainImageScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        cardView.setMainImageScaleType(ImageView.ScaleType.FIT_CENTER);
         cardView.getMainImageView().setImageDrawable(appModel.getIcon());
     }
 

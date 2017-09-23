@@ -36,7 +36,7 @@ public class FunctionCardPresenter extends Presenter {
         Log.d(TAG, "onCreateViewHolder");
 
         sDefaultBackgroundColor = parent.getResources().getColor(R.color.default_background);
-        sSelectedBackgroundColor = parent.getResources().getColor(R.color.selected_background);
+        sSelectedBackgroundColor = parent.getResources().getColor(R.color.detail_background);
 
         ImageCardView cardView = new ImageCardView(parent.getContext()) {
             @Override

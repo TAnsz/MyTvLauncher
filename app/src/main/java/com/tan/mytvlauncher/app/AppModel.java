@@ -1,5 +1,7 @@
 package com.tan.mytvlauncher.app;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 
@@ -7,7 +9,8 @@ import android.support.annotation.NonNull;
  * Created by t1569 on 2017/9/23.
  */
 
-public class AppModel {
+public class AppModel implements Comparable<AppModel> {
+    private static final String PREFS_NAME = "MyAppFile";
     private String dataDir;
     private Drawable icon;
     private String id;
@@ -17,6 +20,7 @@ public class AppModel {
     private int pageIndex;
     private int position;
     private boolean sysApp;
+    private int openCount;
 
     public String getDataDir() {
         return this.dataDir;
@@ -94,4 +98,26 @@ public class AppModel {
         this.launcherName = launcherName;
     }
 
+    public int getOpenCount() {
+        return openCount;
+    }
+
+    public void initOpenCount(Context context) {
+        if (openCount <= 0) {
+            SharedPreferences settings = context.getSharedPreferences(PREFS_NAME, 0);
+            openCount = settings.getInt(this.getPackageName(), 0);
+        }
+    }
+
+    public void setOpenCount(Context context, int openCount) {
+        SharedPreferences.Editor editor = context.getSharedPreferences(PREFS_NAME, 0).edit();
+        editor.putInt(this.getPackageName(), openCount);
+        editor.commit();
+        this.openCount = openCount;
+    }
+
+    @Override
+    public int compareTo(AppModel o) {
+        return this.getOpenCount() - o.getOpenCount();
+    }
 }
