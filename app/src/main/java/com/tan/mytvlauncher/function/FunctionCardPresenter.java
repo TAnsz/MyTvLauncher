@@ -4,8 +4,10 @@ import android.graphics.drawable.Drawable;
 import android.support.v17.leanback.widget.ImageCardView;
 import android.support.v17.leanback.widget.Presenter;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.tan.mytvlauncher.R;
 import com.tan.mytvlauncher.app.AppModel;
@@ -49,6 +51,8 @@ public class FunctionCardPresenter extends Presenter {
         cardView.setFocusable(true);
         cardView.setFocusableInTouchMode(true);
         updateCardBackgroundColor(cardView, false);
+        TextView title = (TextView) cardView.findViewById(R.id.title_text);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, CARD_HEIGHT / 9);
         return new ViewHolder(cardView);
     }
 
@@ -60,7 +64,7 @@ public class FunctionCardPresenter extends Presenter {
         Log.d(TAG, "onBindViewHolder");
         cardView.setMainImageDimensions(CARD_WIDTH, CARD_HEIGHT);
         cardView.setTitleText(functionModel.getName());
-        cardView.setMainImageScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        cardView.setMainImageScaleType(ImageView.ScaleType.FIT_CENTER);
         cardView.getMainImageView().setImageResource(functionModel.getIcon());
     }
 

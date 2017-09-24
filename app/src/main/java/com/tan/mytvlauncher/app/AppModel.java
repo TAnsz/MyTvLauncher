@@ -4,12 +4,14 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 /**
  * Created by t1569 on 2017/9/23.
  */
 
-public class AppModel implements Comparable<AppModel> {
+public class AppModel {
+    private static final String TAG = "AppModel";
     private static final String PREFS_NAME = "MyAppFile";
     private String dataDir;
     private Drawable icon;
@@ -113,11 +115,7 @@ public class AppModel implements Comparable<AppModel> {
         SharedPreferences.Editor editor = context.getSharedPreferences(PREFS_NAME, 0).edit();
         editor.putInt(this.getPackageName(), openCount);
         editor.commit();
+        Log.d(TAG, "PackName:" + this.getPackageName() +" setOpenCount: " + openCount);
         this.openCount = openCount;
-    }
-
-    @Override
-    public int compareTo(AppModel o) {
-        return this.getOpenCount() - o.getOpenCount();
     }
 }

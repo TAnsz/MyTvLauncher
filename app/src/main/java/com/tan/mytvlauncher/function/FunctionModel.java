@@ -55,7 +55,7 @@ public class FunctionModel {
         List<FunctionModel> functionModels = new ArrayList<>();
         FunctionModel appUninstall = new FunctionModel();
         appUninstall.setName(context.getString(R.string.appUninstall));
-        appUninstall.setIcon(R.drawable.ic_app_uninstall);
+        appUninstall.setIcon(R.drawable.ic_delete_forever_black_96dp);
         appUninstall.setIntent(new Intent(context, AppUninstallActivity.class));
 
         functionModels.add(appUninstall);

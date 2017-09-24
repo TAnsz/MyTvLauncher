@@ -75,7 +75,7 @@ public class AppCardPresenter extends Presenter {
         AppModel appModel = (AppModel) item;
         ImageCardView cardView = (ImageCardView) viewHolder.view;
 
-        Log.d(TAG, "onBindViewHolder");
+        Log.d(TAG, "onBindViewHolder:" + appModel.getPackageName() + appModel.getOpenCount());
         cardView.setMainImageDimensions(mWidth, mHeight);
         cardView.setTitleText(appModel.getName());
         cardView.setMainImageScaleType(ImageView.ScaleType.FIT_CENTER);

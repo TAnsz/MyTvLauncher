@@ -1,8 +1,12 @@
 package com.tan.mytvlauncher;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.support.v17.leanback.app.BackgroundManager;
 import android.support.v17.leanback.app.BrowseFragment;
@@ -27,16 +31,20 @@ import com.loopj.android.http.JsonHttpResponseHandler;
 import com.tan.mytvlauncher.app.AppCardPresenter;
 import com.tan.mytvlauncher.app.AppDataManager;
 import com.tan.mytvlauncher.app.AppModel;
+import com.tan.mytvlauncher.app.AppUninstallActivity;
 import com.tan.mytvlauncher.app.BingImage;
 import com.tan.mytvlauncher.card.CardModel;
 import com.tan.mytvlauncher.card.CardPresenter;
 import com.tan.mytvlauncher.function.FunctionCardPresenter;
 import com.tan.mytvlauncher.function.FunctionModel;
+import com.tan.mytvlauncher.util.Tools;
 
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import cz.msebera.android.httpclient.Header;
@@ -45,8 +53,11 @@ public class MainActivity extends Activity {
     protected BrowseFragment mBrowseFragment;
     private ArrayObjectAdapter rowsAdapter;
     private BackgroundManager mBackgroundManager;
+    private ArrayObjectAdapter mUsedListRowAdapter;
     private DisplayMetrics mMetrics;
     private Context mContext;
+    private ArrayList<AppModel> mAppModels;
+    private Receiver receiver;
     private String backImgUrl = null;
     private static int CARD_L_WIDTH = 480;
     private static int CARD_L_HEIGHT = 300;
@@ -66,6 +77,7 @@ public class MainActivity extends Activity {
 
     private void buildRowsAdapter() {
         rowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
+        mAppModels = new AppDataManager(mContext).getLauncherAppList();
 //        addCardRow();
         addUsedRow();
         addAppRow();
@@ -78,8 +90,10 @@ public class MainActivity extends Activity {
                                                          public void onItemClicked(Presenter.ViewHolder itemViewHolder, Object item, RowPresenter.ViewHolder rowViewHolder, Row row) {
                                                              if (item instanceof AppModel) {
                                                                  AppModel appModel = (AppModel) item;
-                                                                 appModel.setOpenCount(mContext, appModel.getOpenCount() + 1);
-                                                                 Log.d("main", "onItemClicked: " + appModel.getOpenCount());
+                                                                 int index = mAppModels.indexOf(appModel);
+                                                                 mAppModels.get(index).setOpenCount(mContext, appModel.getOpenCount() + 1);
+                                                                 refreshUsedApp();
+                                                                 rowsAdapter.notifyArrayItemRangeChanged(0, 1);
                                                                  Intent intent = mContext.getPackageManager().getLaunchIntentForPackage(appModel.getPackageName());
                                                                  if (null != intent) mContext.startActivity(intent);
                                                              } else if (item instanceof FunctionModel) {
@@ -95,14 +109,23 @@ public class MainActivity extends Activity {
     }
 
     private void addUsedRow() {
-        ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new AppCardPresenter(CARD_L_WIDTH, CARD_L_HEIGHT));
-        ArrayList<AppModel> appModels = new AppDataManager(mContext).getLauncherAppList();
-        Collections.sort(appModels);
-        for (int i = 0; i < 4; i++) {
-            listRowAdapter.add(appModels.get(appModels.size() - 1 - i));
-        }
-        ListRow listRow = new ListRow(new HeaderItem(0, getString(R.string.title_used)), listRowAdapter);
+        mUsedListRowAdapter = new ArrayObjectAdapter(new AppCardPresenter(CARD_L_WIDTH, CARD_L_HEIGHT));
+        refreshUsedApp();
+        ListRow listRow = new ListRow(new HeaderItem(0, getString(R.string.title_used)), mUsedListRowAdapter);
         rowsAdapter.add(listRow);
+    }
+
+    private void refreshUsedApp() {
+        ArrayList<AppModel> appModels = new AppDataManager(mContext).getLauncherAppList();
+        Collections.sort(appModels, new Comparator<AppModel>() {
+            public int compare(AppModel appModel1, AppModel appModel2) {
+                return appModel2.getOpenCount() - appModel1.getOpenCount();
+            }
+        });
+        mUsedListRowAdapter.clear();
+        for (int i = 0; i < 4; i++) {
+            mUsedListRowAdapter.add(appModels.get(i));
+        }
     }
 
     private void addFunctionRow() {
@@ -118,8 +141,7 @@ public class MainActivity extends Activity {
     private void addAppRow() {
         ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new AppCardPresenter());
         ArrayObjectAdapter listSysRowAdapter = new ArrayObjectAdapter(new AppCardPresenter());
-        ArrayList<AppModel> appModels = new AppDataManager(mContext).getLauncherAppList();
-        for (AppModel appModel : appModels
+        for (AppModel appModel : mAppModels
                 )
             if (appModel.isSysApp()) listSysRowAdapter.add(appModel);
             else listRowAdapter.add(appModel);
@@ -140,10 +162,34 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        receiver = new Receiver();
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction("android.intent.action.PACKAGE_ADDED");
+        intentFilter.addAction("android.intent.action.PACKAGE_REMOVED");
+        intentFilter.addDataScheme("package");
+        this.registerReceiver(receiver, intentFilter);
+    }
+
+    @Override
     protected void onRestart() {
         super.onRestart();
         if (backImgUrl == null) setBingImg();
         else setBackgroundImage();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (receiver != null) {
+            this.unregisterReceiver(receiver);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+//        super.onBackPressed();
     }
 
     private void prepareBackgroundManager() {
@@ -184,5 +230,41 @@ public class MainActivity extends Activity {
                     }
                 }
         );
+    }
+
+    private class Receiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            //接收安装广播
+            if (intent.getAction().equals("android.intent.action.PACKAGE_ADDED")) {
+
+                String packageName = intent.getDataString();
+                List<ResolveInfo> list = Tools.findActivitiesForPackage(context, packageName);
+                ResolveInfo info = list.get(0);
+                PackageManager localPackageManager = context.getPackageManager();
+                AppModel localAppBean = new AppModel();
+                localAppBean.setIcon(info.activityInfo.loadIcon(localPackageManager));
+                localAppBean.setName(info.activityInfo.loadLabel(localPackageManager).toString());
+                localAppBean.setPackageName(info.activityInfo.packageName);
+                localAppBean.setDataDir(info.activityInfo.applicationInfo.publicSourceDir);
+
+                mAppModels.add(localAppBean);
+            }
+            //接收卸载广播
+            if (intent.getAction().equals("android.intent.action.PACKAGE_REMOVED")) {
+                String receiverName = intent.getDataString();
+                receiverName = receiverName.substring(8);
+                AppModel appBean;
+                for (int i = 0; i < mAppModels.size(); i++) {
+                    appBean = mAppModels.get(i);
+                    String packageName = appBean.getPackageName();
+                    if (packageName.equals(receiverName)) {
+                        mAppModels.remove(i);
+                        rowsAdapter.notifyArrayItemRangeChanged(1, 2);
+                    }
+                }
+            }
+        }
     }
 }
