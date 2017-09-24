@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.Loader;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
@@ -32,18 +33,17 @@ import com.loopj.android.http.JsonHttpResponseHandler;
 import com.tan.mytvlauncher.app.AppCardPresenter;
 import com.tan.mytvlauncher.app.AppDataManager;
 import com.tan.mytvlauncher.app.AppModel;
-import com.tan.mytvlauncher.app.AppUninstallActivity;
 import com.tan.mytvlauncher.app.BingImage;
 import com.tan.mytvlauncher.card.CardModel;
 import com.tan.mytvlauncher.card.CardPresenter;
 import com.tan.mytvlauncher.function.FunctionCardPresenter;
 import com.tan.mytvlauncher.function.FunctionModel;
+import com.tan.mytvlauncher.loader.AppItemLoader;
 import com.tan.mytvlauncher.util.Tools;
 
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -62,6 +62,8 @@ public class MainActivity extends Activity {
     private String backImgUrl = null;
     private static int CARD_L_WIDTH = 435;
     private static int CARD_L_HEIGHT = 300;
+    private static final String TAG = MainActivity.class.getSimpleName();
+    private static final int ITEM_LOADER_ID = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,110 +73,10 @@ public class MainActivity extends Activity {
         mBrowseFragment = (BrowseFragment) getFragmentManager().findFragmentById(R.id.browse_fragment);
         mBrowseFragment.setHeadersState(BrowseFragment.HEADERS_DISABLED);
 
+        getLoaderManager().initLoader(ITEM_LOADER_ID, null, new MainFragmentLoaderCallbacks());
+
         mBrowseFragment.setTitle(getString(R.string.app_name));
         prepareBackgroundManager();
-        buildRowsAdapter();
-    }
-
-    private void buildRowsAdapter() {
-        mAppModels = new AppDataManager(mContext).getLauncherAppList();
-        rowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
-
-        new AsyncTask<String, Void, List<ListRow>>() {
-            @Override
-            protected List<ListRow> doInBackground(String... params) {
-                List<ListRow> listRows = new ArrayList<ListRow>();
-                listRows.add(getUsedRow());
-
-                listRows.addAll(getAppRow());
-                listRows.add(getFunctionRow());
-                return listRows;
-            }
-
-            @Override
-            protected void onPostExecute(List<ListRow> listRows) {
-                rowsAdapter.addAll(0, listRows);
-                mBrowseFragment.setAdapter(rowsAdapter);
-            }
-        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
-        Log.d("main", "buildRowsAdapter: ");
-        mBrowseFragment.setOnItemViewClickedListener(new OnItemViewClickedListener() {
-                                                         @Override
-                                                         public void onItemClicked(Presenter.ViewHolder itemViewHolder, Object item, RowPresenter.ViewHolder rowViewHolder, Row row) {
-                                                             if (item instanceof AppModel) {
-                                                                 AppModel appModel = (AppModel) item;
-                                                                 int index = mAppModels.indexOf(appModel);
-                                                                 mAppModels.get(index).setOpenCount(mContext, appModel.getOpenCount() + 1);
-                                                                 refreshUsedApp();
-                                                                 rowsAdapter.notifyArrayItemRangeChanged(0, 1);
-                                                                 Intent intent = mContext.getPackageManager().getLaunchIntentForPackage(appModel.getPackageName());
-                                                                 if (null != intent) mContext.startActivity(intent);
-                                                             } else if (item instanceof FunctionModel) {
-                                                                 FunctionModel functionModel = (FunctionModel) item;
-                                                                 Intent intent = functionModel.getIntent();
-                                                                 if (null != intent)
-                                                                     startActivity(intent);
-                                                             }
-                                                         }
-                                                     }
-
-        );
-    }
-
-    private ListRow getUsedRow() {
-        mUsedListRowAdapter = new ArrayObjectAdapter(new AppCardPresenter(CARD_L_WIDTH, CARD_L_HEIGHT));
-        refreshUsedApp();
-        ListRow listRow = new ListRow(new HeaderItem(0, getString(R.string.title_used)), mUsedListRowAdapter);
-        return listRow;
-    }
-
-    private void refreshUsedApp() {
-        ArrayList<AppModel> appModels = new AppDataManager(mContext).getLauncherAppList();
-        Collections.sort(appModels, new Comparator<AppModel>() {
-            public int compare(AppModel appModel1, AppModel appModel2) {
-                return appModel2.getOpenCount() - appModel1.getOpenCount();
-            }
-        });
-        mUsedListRowAdapter.clear();
-        for (int i = 0; i < 4; i++) {
-            mUsedListRowAdapter.add(appModels.get(i));
-        }
-    }
-
-    private ListRow getFunctionRow() {
-        ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new FunctionCardPresenter());
-        List<FunctionModel> functionModels = FunctionModel.getFunctionList(mContext);
-        for (FunctionModel item : functionModels
-                ) {
-            listRowAdapter.add(item);
-        }
-        return new ListRow(new HeaderItem(0, getString(R.string.title_function)), listRowAdapter);
-    }
-
-    private List<ListRow> getAppRow() {
-        ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new AppCardPresenter());
-        ArrayObjectAdapter listSysRowAdapter = new ArrayObjectAdapter(new AppCardPresenter());
-        for (AppModel appModel : mAppModels
-                )
-            if (appModel.isSysApp()) listSysRowAdapter.add(appModel);
-            else listRowAdapter.add(appModel);
-        List<ListRow> listRows = new ArrayList<>();
-        listRows.add(new ListRow(new HeaderItem(0, getString(R.string.title_app)), listRowAdapter));
-        listRows.add(new ListRow(new HeaderItem(0, getString(R.string.title_sysapp)), listSysRowAdapter));
-        return listRows;
-    }
-
-    private ListRow[] getCardRow() {
-        ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new CardPresenter());
-
-        for (CardModel carModel : CardModel.getCardModels()
-                ) {
-            listRowAdapter.add(carModel);
-        }
-
-        HeaderItem header = new HeaderItem(0, getString(R.string.title_used));
-        return new ListRow[]{new ListRow(header, listRowAdapter)};
     }
 
     @Override
@@ -281,6 +183,50 @@ public class MainActivity extends Activity {
                     }
                 }
             }
+        }
+    }
+
+    private class MainFragmentLoaderCallbacks implements android.app.LoaderManager.LoaderCallbacks<List<ListRow>> {
+        @Override
+        public Loader<List<ListRow>> onCreateLoader(int id, Bundle args) {
+            Log.d(TAG, "onCreateLoader: AppItemLoader");
+            return new AppItemLoader(mContext);
+        }
+
+        @Override
+        public void onLoadFinished(Loader<List<ListRow>> loader, List<ListRow> data) {
+            Log.d(TAG, "onLoadFinished: " + data.size());
+            switch (loader.getId()) {
+                case ITEM_LOADER_ID:
+                    Log.d(TAG, "onLoadFinished: UI Update");
+                    rowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
+                    rowsAdapter.addAll(0, data);
+                    mBrowseFragment.setAdapter(rowsAdapter);
+                    mBrowseFragment.setOnItemViewClickedListener(new OnItemViewClickedListener() {
+                                                                     @Override
+                                                                     public void onItemClicked(Presenter.ViewHolder itemViewHolder, Object item, RowPresenter.ViewHolder rowViewHolder, Row row) {
+                                                                         if (item instanceof AppModel) {
+                                                                             AppModel appModel = (AppModel) item;
+                                                                             appModel.setOpenCount(mContext, appModel.getOpenCount() + 1);
+                                                                             Intent intent = mContext.getPackageManager().getLaunchIntentForPackage(appModel.getPackageName());
+                                                                             if (null != intent) mContext.startActivity(intent);
+                                                                         } else if (item instanceof FunctionModel) {
+                                                                             FunctionModel functionModel = (FunctionModel) item;
+                                                                             Intent intent = functionModel.getIntent();
+                                                                             if (null != intent)
+                                                                                 startActivity(intent);
+                                                                         }
+                                                                     }
+                                                                 }
+
+                    );
+            }
+
+        }
+
+        @Override
+        public void onLoaderReset(Loader<List<ListRow>> loader) {
+
         }
     }
 }
