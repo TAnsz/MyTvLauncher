@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
+import android.os.AsyncTask;
 import android.support.v17.leanback.app.BackgroundManager;
 import android.support.v17.leanback.app.BrowseFragment;
 import android.support.v17.leanback.widget.ArrayObjectAdapter;
@@ -59,7 +60,7 @@ public class MainActivity extends Activity {
     private ArrayList<AppModel> mAppModels;
     private Receiver receiver;
     private String backImgUrl = null;
-    private static int CARD_L_WIDTH = 480;
+    private static int CARD_L_WIDTH = 435;
     private static int CARD_L_HEIGHT = 300;
 
     @Override
@@ -76,15 +77,28 @@ public class MainActivity extends Activity {
     }
 
     private void buildRowsAdapter() {
-        rowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
         mAppModels = new AppDataManager(mContext).getLauncherAppList();
-//        addCardRow();
-        addUsedRow();
-        addAppRow();
-        addFunctionRow();
+        rowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
+
+        new AsyncTask<String, Void, List<ListRow>>() {
+            @Override
+            protected List<ListRow> doInBackground(String... params) {
+                List<ListRow> listRows = new ArrayList<ListRow>();
+                listRows.add(getUsedRow());
+
+                listRows.addAll(getAppRow());
+                listRows.add(getFunctionRow());
+                return listRows;
+            }
+
+            @Override
+            protected void onPostExecute(List<ListRow> listRows) {
+                rowsAdapter.addAll(0, listRows);
+                mBrowseFragment.setAdapter(rowsAdapter);
+            }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         Log.d("main", "buildRowsAdapter: ");
-        mBrowseFragment.setAdapter(rowsAdapter);
         mBrowseFragment.setOnItemViewClickedListener(new OnItemViewClickedListener() {
                                                          @Override
                                                          public void onItemClicked(Presenter.ViewHolder itemViewHolder, Object item, RowPresenter.ViewHolder rowViewHolder, Row row) {
@@ -108,11 +122,11 @@ public class MainActivity extends Activity {
         );
     }
 
-    private void addUsedRow() {
+    private ListRow getUsedRow() {
         mUsedListRowAdapter = new ArrayObjectAdapter(new AppCardPresenter(CARD_L_WIDTH, CARD_L_HEIGHT));
         refreshUsedApp();
         ListRow listRow = new ListRow(new HeaderItem(0, getString(R.string.title_used)), mUsedListRowAdapter);
-        rowsAdapter.add(listRow);
+        return listRow;
     }
 
     private void refreshUsedApp() {
@@ -128,28 +142,30 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void addFunctionRow() {
+    private ListRow getFunctionRow() {
         ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new FunctionCardPresenter());
         List<FunctionModel> functionModels = FunctionModel.getFunctionList(mContext);
         for (FunctionModel item : functionModels
                 ) {
             listRowAdapter.add(item);
         }
-        rowsAdapter.add(new ListRow(new HeaderItem(0, getString(R.string.title_function)), listRowAdapter));
+        return new ListRow(new HeaderItem(0, getString(R.string.title_function)), listRowAdapter);
     }
 
-    private void addAppRow() {
+    private List<ListRow> getAppRow() {
         ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new AppCardPresenter());
         ArrayObjectAdapter listSysRowAdapter = new ArrayObjectAdapter(new AppCardPresenter());
         for (AppModel appModel : mAppModels
                 )
             if (appModel.isSysApp()) listSysRowAdapter.add(appModel);
             else listRowAdapter.add(appModel);
-        rowsAdapter.add(new ListRow(new HeaderItem(0, getString(R.string.title_app)), listRowAdapter));
-        rowsAdapter.add(new ListRow(new HeaderItem(0, getString(R.string.title_sysapp)), listSysRowAdapter));
+        List<ListRow> listRows = new ArrayList<>();
+        listRows.add(new ListRow(new HeaderItem(0, getString(R.string.title_app)), listRowAdapter));
+        listRows.add(new ListRow(new HeaderItem(0, getString(R.string.title_sysapp)), listSysRowAdapter));
+        return listRows;
     }
 
-    private void addCardRow() {
+    private ListRow[] getCardRow() {
         ArrayObjectAdapter listRowAdapter = new ArrayObjectAdapter(new CardPresenter());
 
         for (CardModel carModel : CardModel.getCardModels()
@@ -158,7 +174,7 @@ public class MainActivity extends Activity {
         }
 
         HeaderItem header = new HeaderItem(0, getString(R.string.title_used));
-        rowsAdapter.add(new ListRow(header, listRowAdapter));
+        return new ListRow[]{new ListRow(header, listRowAdapter)};
     }
 
     @Override
