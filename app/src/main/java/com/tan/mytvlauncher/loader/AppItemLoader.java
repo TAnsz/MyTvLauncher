@@ -33,8 +33,10 @@ public class AppItemLoader extends AsyncTaskLoader<List<ListRow>> {
     private static int CARD_L_HEIGHT = 300;
     private ArrayList<AppModel> mAppModels;
 
-    public AppItemLoader(Context context) {
+    public AppItemLoader(Context context, ArrayList<AppModel> appModels) {
+
         super(context);
+        this.mAppModels = appModels;
     }
 
     @Override
@@ -45,7 +47,6 @@ public class AppItemLoader extends AsyncTaskLoader<List<ListRow>> {
     @Override
     public List<ListRow> loadInBackground() {
         List<ListRow> listRows = new ArrayList<>();
-        mAppModels = new AppDataManager(getContext()).getLauncherAppList();
         Log.d(TAG, "loadInBackground: " + mAppModels.size());
         listRows.add(getUsedRow());
 

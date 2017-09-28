@@ -98,6 +98,7 @@ public class AppUninstallActivity extends Activity implements View.OnClickListen
             if (intent.getAction().equals("android.intent.action.PACKAGE_ADDED")) {
 
                 String packageName = intent.getDataString();
+                packageName = packageName.split(":")[1];
                 List<ResolveInfo> list = Tools.findActivitiesForPackage(context, packageName);
                 ResolveInfo info = list.get(0);
                 PackageManager localPackageManager = context.getPackageManager();

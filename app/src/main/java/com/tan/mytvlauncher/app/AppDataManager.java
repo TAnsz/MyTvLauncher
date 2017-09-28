@@ -23,8 +23,8 @@ public class AppDataManager {
 
     public ArrayList<AppModel> getLauncherAppList() {
         PackageManager packageManager = mContext.getPackageManager();
-        Intent intent = new Intent("android.intent.action.MAIN");
-        intent.addCategory("android.intent.category.LAUNCHER");
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
         List<ResolveInfo> list = packageManager.queryIntentActivities(intent, 0);
         ArrayList<AppModel> appModels = new ArrayList<>();
         Iterator<ResolveInfo> resolveInfoIterators = null;

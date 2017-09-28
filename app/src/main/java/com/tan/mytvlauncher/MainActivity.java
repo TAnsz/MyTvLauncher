@@ -39,6 +39,7 @@ import com.tan.mytvlauncher.card.CardPresenter;
 import com.tan.mytvlauncher.function.FunctionCardPresenter;
 import com.tan.mytvlauncher.function.FunctionModel;
 import com.tan.mytvlauncher.loader.AppItemLoader;
+import com.tan.mytvlauncher.util.SpinnerFragment;
 import com.tan.mytvlauncher.util.Tools;
 
 import org.json.JSONObject;
@@ -52,7 +53,6 @@ import cz.msebera.android.httpclient.Header;
 
 public class MainActivity extends Activity {
     protected BrowseFragment mBrowseFragment;
-    private ArrayObjectAdapter rowsAdapter;
     private BackgroundManager mBackgroundManager;
     private ArrayObjectAdapter mUsedListRowAdapter;
     private DisplayMetrics mMetrics;
@@ -156,30 +156,39 @@ public class MainActivity extends Activity {
         public void onReceive(Context context, Intent intent) {
             //接收安装广播
             if (intent.getAction().equals("android.intent.action.PACKAGE_ADDED")) {
+                try {
+                    String packageName = intent.getDataString();
+                    packageName = packageName.split(":")[1];
+                    List<ResolveInfo> list = Tools.findActivitiesForPackage(context, packageName);
+                    if (list.size() > 0) {
+                        ResolveInfo info = list.get(0);
+                        PackageManager localPackageManager = context.getPackageManager();
+                        AppModel localAppModel = new AppModel();
+                        localAppModel.setIcon(info.activityInfo.loadIcon(localPackageManager));
+                        localAppModel.setName(info.activityInfo.loadLabel(localPackageManager).toString());
+                        localAppModel.setPackageName(info.activityInfo.packageName);
+                        localAppModel.setDataDir(info.activityInfo.applicationInfo.publicSourceDir);
+                        mAppModels.add(localAppModel);
+                        getLoaderManager().restartLoader(ITEM_LOADER_ID, null, new MainFragmentLoaderCallbacks());
+                    } else {
+                        Log.d(TAG, "onReceive: 找不到安装的app");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 
-                String packageName = intent.getDataString();
-                List<ResolveInfo> list = Tools.findActivitiesForPackage(context, packageName);
-                ResolveInfo info = list.get(0);
-                PackageManager localPackageManager = context.getPackageManager();
-                AppModel localAppBean = new AppModel();
-                localAppBean.setIcon(info.activityInfo.loadIcon(localPackageManager));
-                localAppBean.setName(info.activityInfo.loadLabel(localPackageManager).toString());
-                localAppBean.setPackageName(info.activityInfo.packageName);
-                localAppBean.setDataDir(info.activityInfo.applicationInfo.publicSourceDir);
-
-                mAppModels.add(localAppBean);
             }
             //接收卸载广播
             if (intent.getAction().equals("android.intent.action.PACKAGE_REMOVED")) {
                 String receiverName = intent.getDataString();
+                Log.d(TAG, "onReceive: " + receiverName);
                 receiverName = receiverName.substring(8);
-                AppModel appBean;
-                for (int i = 0; i < mAppModels.size(); i++) {
-                    appBean = mAppModels.get(i);
-                    String packageName = appBean.getPackageName();
-                    if (packageName.equals(receiverName)) {
+                for (int i = 0; i < mAppModels.size(); i++
+                        ) {
+                    if (mAppModels.get(i).getPackageName().equals(receiverName)) {
+                        mAppModels.get(i).setOpenCount(mContext, 0);
                         mAppModels.remove(i);
-                        rowsAdapter.notifyArrayItemRangeChanged(1, 2);
+                        getLoaderManager().restartLoader(ITEM_LOADER_ID, null, new MainFragmentLoaderCallbacks());
                     }
                 }
             }
@@ -190,7 +199,8 @@ public class MainActivity extends Activity {
         @Override
         public Loader<List<ListRow>> onCreateLoader(int id, Bundle args) {
             Log.d(TAG, "onCreateLoader: AppItemLoader");
-            return new AppItemLoader(mContext);
+            mAppModels = new AppDataManager(mContext).getLauncherAppList();
+            return new AppItemLoader(mContext, mAppModels);
         }
 
         @Override
@@ -199,7 +209,7 @@ public class MainActivity extends Activity {
             switch (loader.getId()) {
                 case ITEM_LOADER_ID:
                     Log.d(TAG, "onLoadFinished: UI Update");
-                    rowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
+                    ArrayObjectAdapter rowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
                     rowsAdapter.addAll(0, data);
                     mBrowseFragment.setAdapter(rowsAdapter);
                     mBrowseFragment.setOnItemViewClickedListener(new OnItemViewClickedListener() {
@@ -221,12 +231,11 @@ public class MainActivity extends Activity {
 
                     );
             }
-
         }
 
         @Override
         public void onLoaderReset(Loader<List<ListRow>> loader) {
-
+            mBrowseFragment.setAdapter(null);
         }
     }
 }
